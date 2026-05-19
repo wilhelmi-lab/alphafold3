@@ -155,6 +155,10 @@ class InferenceTest(parameterized.TestCase):
 
   def test_model_inference(self):
     """Run model inference and assert that output exists."""
+    model_dir = pathlib.Path(run_alphafold.MODEL_DIR.value)
+    if not model_dir.exists():
+      self.skipTest(f'Model directory not found: {model_dir}')
+
     featurised_examples = pickle.loads(
         (resources.ROOT / 'test_data' / 'featurised_example.pkl').read_bytes()
     )
@@ -199,6 +203,9 @@ class InferenceTest(parameterized.TestCase):
   )
   def test_inference(self, bucket, seed):
     """Run AlphaFold 3 inference."""
+    model_dir = pathlib.Path(run_alphafold.MODEL_DIR.value)
+    if not model_dir.exists():
+      self.skipTest(f'Model directory not found: {model_dir}')
 
     ### Prepare inputs with modified seed.
     fold_input = folding_input.Input.from_json(self._test_input_json)
@@ -210,7 +217,7 @@ class InferenceTest(parameterized.TestCase):
         self._data_pipeline_config,
         model_runner=run_alphafold.ModelRunner(
             config=self._model_config,
-            device=jax.local_devices(backend='gpu')[0],
+            device=jax.local_devices()[0],
             model_dir=pathlib.Path(run_alphafold.MODEL_DIR.value),
         ),
         output_dir=output_dir,

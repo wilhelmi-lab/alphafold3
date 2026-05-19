@@ -1,0 +1,28 @@
+{
+    "name": "AMD GPU JAX",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "context": "../.."
+    },
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+    "workspaceFolder": "/workspace",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+                "ms-python.debugpy",
+                "ms-toolsai.jupyter"
+            ]
+        }
+    },
+    "runArgs": [
+        "--device=/dev/kfd",
+        "--device=/dev/dri",
+        "--ipc=host",
+        "--shm-size=4g",
+        "--group-add", "video",
+        "--group-add", "render"
+    ],
+    "postCreateCommand": "apt-get update && apt-get install -y --no-install-recommends tmux && rm -rf /var/lib/apt/lists/*",
+    "shutdownAction": "none",
+}

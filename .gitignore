@@ -1,0 +1,15 @@
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# Build artifacts produced by `build_data` during `pip install`
+src/alphafold3/constants/converters/*.pickle
+
+# Built container images
+*.sif
+
+# Editor / OS
+.DS_Store
+.vscode/
+*.swp

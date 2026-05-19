@@ -25,6 +25,15 @@ import dataclasses
 import datetime
 import functools
 import os
+
+# Must be set before JAX initialises the XLA GPU backend.
+# Disable XLA's Triton GEMM pass (NVIDIA-only, crashes on ROCm).
+_xla_flags = os.environ.get('XLA_FLAGS', '')
+if '--xla_gpu_enable_triton_gemm' not in _xla_flags:
+    os.environ['XLA_FLAGS'] = _xla_flags + ' --xla_gpu_enable_triton_gemm=false'
+# Disable SDMA engines — avoids HSA_STATUS_ERROR_MEMORY_APERTURE_VIOLATION on
+# AMD GPUs where SDMA and GPU compute see different memory aperture mappings.
+os.environ.setdefault('HSA_ENABLE_SDMA', '0')
 import pathlib
 import shutil
 import string
@@ -870,29 +879,37 @@ def main(_):
     # Fail early on incompatible devices, but only if we're running inference.
     gpu_devices = jax.local_devices(backend='gpu')
     if gpu_devices:
-      compute_capability = float(
-          gpu_devices[_GPU_DEVICE.value].compute_capability
-      )
-      if compute_capability < 6.0:
-        raise ValueError(
-            'AlphaFold 3 requires at least GPU compute capability 6.0 (see'
-            ' https://developer.nvidia.com/cuda-gpus).'
-        )
-      elif 7.0 <= compute_capability < 8.0:
-        xla_flags = os.environ.get('XLA_FLAGS')
-        required_flag = '--xla_disable_hlo_passes=custom-kernel-fusion-rewriter'
-        if not xla_flags or required_flag not in xla_flags:
+      device = gpu_devices[_GPU_DEVICE.value]
+      platform_version = (
+          getattr(device.client, 'platform_version', '') or ''
+      ).lower()
+      # The compute-capability guards below are CUDA-specific: NVIDIA
+      # reports a numeric capability ('8.0'), while ROCm reports a GFX
+      # arch name ('gfx90a') that wouldn't parse as a float. The ROCm
+      # build only targets AMD GPUs the toolchain supports, so skip the
+      # NVIDIA-targeted checks entirely on that platform.
+      if 'rocm' not in platform_version:
+        compute_capability = float(device.compute_capability)
+        if compute_capability < 6.0:
           raise ValueError(
-              'For devices with GPU compute capability 7.x (see'
-              ' https://developer.nvidia.com/cuda-gpus) the ENV XLA_FLAGS must'
-              f' include "{required_flag}".'
+              'AlphaFold 3 requires at least GPU compute capability 6.0 (see'
+              ' https://developer.nvidia.com/cuda-gpus).'
           )
-        if _FLASH_ATTENTION_IMPLEMENTATION.value != 'xla':
-          raise ValueError(
-              'For devices with GPU compute capability 7.x (see'
-              ' https://developer.nvidia.com/cuda-gpus) the'
-              ' --flash_attention_implementation must be set to "xla".'
-          )
+        elif 7.0 <= compute_capability < 8.0:
+          xla_flags = os.environ.get('XLA_FLAGS')
+          required_flag = '--xla_disable_hlo_passes=custom-kernel-fusion-rewriter'
+          if not xla_flags or required_flag not in xla_flags:
+            raise ValueError(
+                'For devices with GPU compute capability 7.x (see'
+                ' https://developer.nvidia.com/cuda-gpus) the ENV XLA_FLAGS must'
+                f' include "{required_flag}".'
+            )
+          if _FLASH_ATTENTION_IMPLEMENTATION.value != 'xla':
+            raise ValueError(
+                'For devices with GPU compute capability 7.x (see'
+                ' https://developer.nvidia.com/cuda-gpus) the'
+                ' --flash_attention_implementation must be set to "xla".'
+            )
 
   notice = textwrap.wrap(
       'Running AlphaFold 3. Please note that standard AlphaFold 3 model'

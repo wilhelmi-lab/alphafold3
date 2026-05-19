@@ -30,6 +30,9 @@ class GlobalConfig(base_config.BaseConfig):
       (None, 1024),
   )
   # Note: flash_attention_implementation = 'xla' means no flash attention.
+  # Default changed from 'triton' to 'xla' for the ROCm build: tokamax's
+  # Triton flash-attention kernels target NVIDIA PTX and cannot run on AMD
+  # GPUs. 'xla' is portable and works on both NVIDIA and ROCm.
   flash_attention_implementation: tokamax.DotProductAttentionImplementation = (
-      'triton'
+      'xla'
   )
