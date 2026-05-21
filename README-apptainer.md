@@ -80,12 +80,12 @@ apptainer exec \
 
 Key differences from the Docker invocation:
 
-| Docker                         | Apptainer                                                |
-| ------------------------------ | -------------------------------------------------------- |
-| `--gpus all`                   | `--rocm` (binds `/dev/kfd`, `/dev/dri`, `/opt/rocm/...`) |
-| `--volume src:dst`             | `--bind src:dst`                                         |
-| implicit `WORKDIR /app/alphafold` | `--pwd /workspace`                                       |
-| `python run_alphafold.py`      | `python3 run_alphafold.py`                               |
+| Docker                              | Apptainer                                                |
+| ----------------------------------- | -------------------------------------------------------- |
+| `--gpus all`                        | `--rocm` (binds `/dev/kfd`, `/dev/dri`, `/opt/rocm/...`) |
+| `--volume src:dst`                  | `--bind src:dst`                                         |
+| implicit `WORKDIR /app/alphafold`   | `--pwd /workspace`                                       |
+| `python run_alphafold.py`           | `python3 run_alphafold.py`                               |
 
 ### Selecting a GPU
 
@@ -140,8 +140,9 @@ apptainer exec --pwd /workspace alphafold3-rocm.sif \
 
 Set at build time for ROCm compatibility; no need to pass on each invocation:
 
-- `XLA_FLAGS="--xla_disable_hlo_passes=fusion,multi-output-fusion --xla_gpu_enable_triton_gemm=false"`
+- `XLA_FLAGS="--xla_disable_hlo_passes=fusion,multi-output-fusion --xla_gpu_enable_triton_gemm=false --xla_gpu_autotune_level=0"`
 - `HSA_ENABLE_SDMA=0`
+- `TOKAMAX_GLU_IMPL=xla`
 - `XLA_PYTHON_CLIENT_PREALLOCATE=true`
 - `XLA_CLIENT_MEM_FRACTION=0.95`
 

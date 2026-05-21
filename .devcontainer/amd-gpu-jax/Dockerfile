@@ -62,7 +62,15 @@ ENV XLA_CLIENT_MEM_FRACTION=0.95
 # ROCm-specific runtime flags (previously passed on the command line):
 # - xla_disable_hlo_passes: disable fusion passes that miscompile on ROCm.
 # - xla_gpu_enable_triton_gemm: Triton GEMM is NVIDIA-only and crashes on ROCm.
+# - xla_gpu_autotune_level=0: disable XLA autotuning. The autotuner makes
+#   NVIDIA-specific timing assumptions and can crash or pick bad kernels
+#   on AMD GPUs.
 # - HSA_ENABLE_SDMA=0: avoids HSA_STATUS_ERROR_MEMORY_APERTURE_VIOLATION on
 #   AMD GPUs where SDMA and compute see different memory aperture mappings.
-ENV XLA_FLAGS="--xla_disable_hlo_passes=fusion,multi-output-fusion --xla_gpu_enable_triton_gemm=false"
+# - TOKAMAX_GLU_IMPL=xla: force tokamax.gated_linear_unit onto its XLA
+#   implementation. Belt-and-suspenders alongside our ROCm-aware tokamax
+#   fork — the env var bypasses tokamax's per-call kernel selection
+#   entirely, which is the safest path on AMD GPUs.
+ENV XLA_FLAGS="--xla_disable_hlo_passes=fusion,multi-output-fusion --xla_gpu_enable_triton_gemm=false --xla_gpu_autotune_level=0"
 ENV HSA_ENABLE_SDMA=0
+ENV TOKAMAX_GLU_IMPL=xla
