@@ -322,7 +322,12 @@ _BUCKETS = flags.DEFINE_list(
 )
 _FLASH_ATTENTION_IMPLEMENTATION = flags.DEFINE_enum(
     'flash_attention_implementation',
-    default='triton',
+    # Default changed from 'triton' to 'xla' for the ROCm build: tokamax's
+    # Triton flash-attention kernels target NVIDIA PTX and cannot run on AMD
+    # GPUs. 'xla' is portable. Note: changing GlobalConfig.flash_attention_implementation
+    # alone is not enough — `make_model_config` always passes this flag's
+    # value into the config, overwriting the class-level default.
+    default='xla',
     enum_values=['triton', 'cudnn', 'xla'],
     help=(
         "Flash attention implementation to use. 'triton' and 'cudnn' uses a"
@@ -389,7 +394,12 @@ _COMPRESS_LARGE_OUTPUT_FILES = flags.DEFINE_bool(
 
 def make_model_config(
     *,
-    flash_attention_implementation: tokamax.DotProductAttentionImplementation = 'triton',
+    # Default changed from 'triton' to 'xla' for the ROCm build (see the
+    # absl flag definition above for context). Callers in this file always
+    # pass _FLASH_ATTENTION_IMPLEMENTATION.value explicitly, so this default
+    # is mostly cosmetic — but it's kept in sync so direct callers see the
+    # right value too.
+    flash_attention_implementation: tokamax.DotProductAttentionImplementation = 'xla',
     num_diffusion_samples: int = 5,
     num_recycles: int = 10,
     return_embeddings: bool = False,
