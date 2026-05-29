@@ -19,11 +19,13 @@ RUN pip install --no-cache-dir \
 # Install our ROCm-aware tokamax fork before `pip install -e .` so the
 # alphafold3 dependency resolver picks this up instead of pulling stock
 # tokamax==0.0.11 from PyPI. The fork is upstream tokamax v0.0.11 (commit
-# b2e34ba) with a single commit on top adding ROCm-awareness to the
-# `compute_capability` checks (see `alphafold3-rocm` branch on
-# github.com/wilhelmi-lab/tokamax). SHA pinned for reproducibility.
+# b2e34ba) plus two commits on the `alphafold3-rocm` branch on
+# github.com/wilhelmi-lab/tokamax:
+#   - 0c8e896 ROCm-aware compute_capability checks
+#   - e53093e log the "unknown compute capability" warning once per process
+# SHA pinned for reproducibility.
 RUN pip install --no-cache-dir \
-        "tokamax @ git+https://github.com/wilhelmi-lab/tokamax.git@0c8e896"
+        "tokamax @ git+https://github.com/wilhelmi-lab/tokamax.git@e53093e"
 
 ENV PATH="/hmmer/bin:$PATH"
 
