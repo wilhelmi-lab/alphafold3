@@ -9,22 +9,34 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Ubuntu 24.04 marks system Python as externally-managed (PEP 668).
 RUN rm -f /usr/lib/python*/EXTERNALLY-MANAGED
 
-# Install JAX with ROCm support.  Pin to 0.9.1 because jax-rocm7-plugin
-# is currently only released for that version; `jax[rocm]` would pull a
-# newer jax that then fails to load the plugin with missing-symbol errors.
-RUN pip install --no-cache-dir \
-        "jax==0.9.1" "jaxlib==0.9.1" \
-        "jax-rocm7-plugin==0.9.1.*" "jax-rocm7-pjrt==0.9.1.*"
-
-# Install our ROCm-aware tokamax fork before `pip install -e .` so the
-# alphafold3 dependency resolver picks this up instead of pulling stock
-# tokamax==0.0.11 from PyPI. The fork is upstream tokamax v0.0.11 (commit
-# b2e34ba) plus two commits on the `alphafold3-rocm` branch on
+# Install JAX with ROCm support + our patched tokamax fork in a single
+# pip resolution so the strict jax==0.9.1 / jaxlib==0.9.1 pins act as
+# version caps on tokamax's transitive dependencies.
+#
+# Why one RUN instead of two:
+#   tokamax depends on `flax` (unpinned). Modern flax (>=0.12.7) requires
+#   jax>=0.10.0. If tokamax is installed in a separate pip call, pip's
+#   resolver doesn't treat the already-installed jax==0.9.1 as an upper
+#   bound and will silently uninstall it to satisfy flax's newer-jax
+#   requirement. The resulting jaxlib 0.10.x is then ABI-incompatible
+#   with jax-rocm7-plugin 0.9.1 — `import jax` fails with
+#   `AttributeError: module 'jax_rocm7_plugin._triton' has no attribute
+#   'registrations'`. Putting jax==0.9.1 and tokamax in the same pip call
+#   forces the resolver to pick a flax old enough to honour jax==0.9.1.
+#
+# jax-rocm7-plugin / jax-rocm7-pjrt are pinned to 0.9.1.* because that's
+# the only series released for jax 0.9; `jax[rocm]` would pull a newer
+# jax that then fails to load the plugin with missing-symbol errors.
+#
+# Our tokamax fork is upstream tokamax v0.0.11 (commit b2e34ba) plus two
+# commits on the `alphafold3-rocm` branch on
 # github.com/wilhelmi-lab/tokamax:
 #   - 0c8e896 ROCm-aware compute_capability checks
 #   - e53093e log the "unknown compute capability" warning once per process
 # SHA pinned for reproducibility.
 RUN pip install --no-cache-dir \
+        "jax==0.9.1" "jaxlib==0.9.1" \
+        "jax-rocm7-plugin==0.9.1.*" "jax-rocm7-pjrt==0.9.1.*" \
         "tokamax @ git+https://github.com/wilhelmi-lab/tokamax.git@e53093e"
 
 ENV PATH="/hmmer/bin:$PATH"
